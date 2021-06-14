@@ -17,7 +17,6 @@
 package com.linkedin.restli.docgen;
 
 
-import com.linkedin.data.Data;
 import com.linkedin.data.DataMap;
 import com.linkedin.data.codec.JacksonDataCodec;
 import com.linkedin.data.schema.NamedDataSchema;
@@ -30,7 +29,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -66,7 +64,7 @@ public class RestLiJSONDocumentationRenderer implements RestLiDocumentationRende
     try
     {
       for (ResourceSchema resourceSchema:
-           new HashSet<ResourceSchema>(_relationships.getResourceSchemaCollection().getResources().values()))
+           new HashSet<>(_relationships.getResourceSchemaCollection().getResources().values()))
       {
         renderResource(resourceSchema, outputMap);
       }
@@ -105,12 +103,13 @@ public class RestLiJSONDocumentationRenderer implements RestLiDocumentationRende
   public void renderDataModelHome(OutputStream out)
   {
     final DataMap outputMap = createEmptyOutput();
+    final DataMap models = outputMap.getDataMap("models");
 
     try
     {
-      for (NamedDataSchema schema: new HashSet<NamedDataSchema>(_relationships.getDataModels().values()))
+      for (NamedDataSchema schema: new HashSet<>(_relationships.getDataModels().values()))
       {
-        renderDataModel(schema, outputMap);
+        renderDataModel(schema, models);
       }
 
       _codec.writeMap(outputMap, out);
@@ -131,10 +130,10 @@ public class RestLiJSONDocumentationRenderer implements RestLiDocumentationRende
     }
 
     final DataMap outputMap = createEmptyOutput();
-
+    final DataMap models = outputMap.getDataMap("models");
     try
     {
-      renderDataModel(schema, outputMap);
+      renderDataModel(schema, models);
       _codec.writeMap(outputMap, out);
     }
     catch (IOException e)
@@ -166,19 +165,18 @@ public class RestLiJSONDocumentationRenderer implements RestLiDocumentationRende
 
   private void addRelatedModels(ResourceSchema resourceSchema, DataMap models) throws IOException
   {
-    Map<String, DataMap> relatedSchemas;
+   DataMap relatedSchemas;
     synchronized (this)
     {
       relatedSchemas = _relatedSchemaCache.get(resourceSchema);
       if (relatedSchemas == null)
       {
-        relatedSchemas = new HashMap<String, DataMap>();
+        relatedSchemas = new DataMap();
         final Node<?> node = _relationships.getRelationships(resourceSchema);
-        final Iterator<Node<NamedDataSchema>> schemaItr = node.getAdjacency(NamedDataSchema.class).iterator();
-        while (schemaItr.hasNext())
+        for (Node<NamedDataSchema> namedDataSchemaNode : node.getAdjacency(NamedDataSchema.class))
         {
-          final NamedDataSchema currResource = (NamedDataSchema) schemaItr.next().getObject();
-          relatedSchemas.put(currResource.getFullName(), _codec.stringToMap(currResource.toString()));
+          final NamedDataSchema currResource = (NamedDataSchema) namedDataSchemaNode.getObject();
+          renderDataModel(currResource, relatedSchemas);
         }
         _relatedSchemaCache.put(resourceSchema, relatedSchemas);
       }
@@ -195,11 +193,11 @@ public class RestLiJSONDocumentationRenderer implements RestLiDocumentationRende
     resources.put(ResourceSchemaUtil.getFullName(resourceSchema), resourceSchema.data());
     addRelatedModels(resourceSchema, models);
 
-    final List<ResourceSchema> subresources = _relationships.getResourceSchemaCollection().getAllSubResources(
+    final List<ResourceSchema> subResources = _relationships.getResourceSchemaCollection().getAllSubResources(
         resourceSchema);
-    if (subresources != null)
+    if (subResources != null)
     {
-      for (ResourceSchema subresource: subresources)
+      for (ResourceSchema subresource: subResources)
       {
         resources.put(ResourceSchemaUtil.getFullName(subresource), subresource.data());
         addRelatedModels(subresource, models);
@@ -207,15 +205,18 @@ public class RestLiJSONDocumentationRenderer implements RestLiDocumentationRende
     }
   }
 
-  private void renderDataModel(NamedDataSchema schema, DataMap outputMap) throws IOException
+  /**
+   * Render a data schema to be included in the documentation response.
+   * @param schema Schema to render
+   * @param outputMap Output map to render into. The full name of the schema should be used as the key.
+   */
+  protected void renderDataModel(NamedDataSchema schema, DataMap outputMap) throws IOException
   {
-    final DataMap models = outputMap.getDataMap("models");
     final DataMap schemaData = _codec.stringToMap(schema.toString());
-    models.put(schema.getFullName(), schemaData);
+    outputMap.put(schema.getFullName(), schemaData);
   }
 
-  private final RestLiResourceRelationship _relationships;
-  private final JacksonDataCodec _codec = new JacksonDataCodec();
-  private final Map<ResourceSchema, Map<String, DataMap>> _relatedSchemaCache =
-      new HashMap<ResourceSchema, Map<String, DataMap>>();
+  protected final RestLiResourceRelationship _relationships;
+  protected final JacksonDataCodec _codec = new JacksonDataCodec();
+  private final Map<ResourceSchema, DataMap> _relatedSchemaCache = new HashMap<>();
 }

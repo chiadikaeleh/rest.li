@@ -17,6 +17,8 @@
 package com.linkedin.restli.docgen;
 
 import java.io.OutputStream;
+import java.net.URI;
+
 
 /**
  * Interface of renderer for documentation generation.
@@ -25,6 +27,15 @@ import java.io.OutputStream;
  */
 public interface RestLiDocumentationRenderer
 {
+  /**
+   * Supported documentation format types.
+   */
+  enum DocumentationFormat
+  {
+    HTML,
+    JSON
+  }
+
   /**
    * Render the homepage of documentation. The homepage is accessed at the root of the documentation URL path.
    * @param out The function will write rendered content to this stream
@@ -70,4 +81,14 @@ public interface RestLiDocumentationRenderer
    * @return MIME type of the rendered content. All render function must be consistent to this MIME type
    */
   String getMIMEType();
+
+  /**
+   * Set the uri to get the documentation in the provided format. Can be used to include links to alternate formats
+   * in the generated documentation.
+   * @param format Documentation format.
+   * @param uri URI to fetch documentation in the given format.
+   */
+ default void setFormatUri(DocumentationFormat format, URI uri)
+  {
+  }
 }

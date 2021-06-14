@@ -285,9 +285,13 @@ public class RestLiHTMLDocumentationRenderer implements RestLiDocumentationRende
     return "text/html";
   }
 
-  public void setJsonFormatUri(URI jsonFormatUri)
+  @Override
+  public void setFormatUri(DocumentationFormat format, URI jsonFormatUri)
   {
-    _jsonFormatUri = URI.create(_serverNodeUri.toString() + jsonFormatUri.toString());
+    if (format == DocumentationFormat.JSON)
+    {
+      _jsonFormatUri = URI.create(_serverNodeUri.toString() + jsonFormatUri.toString());
+    }
   }
 
   private static String getResourceType(ResourceSchema resourceSchema)
